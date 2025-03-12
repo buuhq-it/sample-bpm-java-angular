@@ -1,6 +1,5 @@
 package sample.bpm.be.security;
 
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -17,21 +16,17 @@ public class JwtTokenProvider {
     private final SecretKey accessTokenKey;
     private final SecretKey refreshTokenKey;
     private final long accessTokenExpiration;
-    private final long refreshTokenExpiration;
 
     public JwtTokenProvider(
             @Value("${app.jwt.secret}") String secret,
             @Value("${app.jwt.refresh-secret}") String refreshSecret,
-            @Value("${app.jwt.expiration}") long accessTokenExpiration,
-            @Value("${app.jwt.refresh-expiration}") long refreshTokenExpiration) {
+            @Value("${app.jwt.expiration}") long accessTokenExpiration) {
 
         this.accessTokenKey = generateKey(secret);
         this.refreshTokenKey = generateKey(refreshSecret);
         this.accessTokenExpiration = accessTokenExpiration;
-        this.refreshTokenExpiration = refreshTokenExpiration;
     }
 
-    // ✅ Securely Generate Secret Keys
     private SecretKey generateKey(String secret) {
         byte[] keyBytes = Base64.getEncoder().encode(secret.getBytes(StandardCharsets.UTF_8));
         return Keys.hmacShaKeyFor(keyBytes);
@@ -47,26 +42,6 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    // ✅ Generate Refresh Token
-    public String generateRefreshToken() {
-        return Jwts.builder()
-                .subject("refresh-token")
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
-                .signWith(refreshTokenKey, Jwts.SIG.HS256)
-                .compact();
-    }
-
-    // ✅ Extract Username from Access Token
-    public String getUsernameFromToken(String token) {
-        return Jwts.parser()
-                .verifyWith(accessTokenKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
-    }
-
     // ✅ Validate Token
     public boolean validateToken(String token, boolean isRefreshToken) {
         try {
@@ -76,12 +51,22 @@ public class JwtTokenProvider {
                     .build()
                     .parseSignedClaims(token);
             return true;
-        } catch (ExpiredJwtException e) {
-            System.out.println("JWT Token has expired");
-            return false;
-        } catch (JwtException | IllegalArgumentException e) {
-            System.out.println("Invalid JWT Token: " + e.getMessage());
+        } catch (JwtException e) {
             return false;
         }
     }
+
+    public String getUsernameFromToken(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(accessTokenKey)  // ✅ Use correct signing key
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .getSubject();
+        } catch (JwtException e) {
+            return null; // ✅ Return null if token is invalid
+        }
+    }
+
 }

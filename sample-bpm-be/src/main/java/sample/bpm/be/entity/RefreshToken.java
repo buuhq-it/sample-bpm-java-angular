@@ -2,7 +2,8 @@ package sample.bpm.be.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.util.Date;
+
+import java.time.Instant;
 
 @Entity
 @Table(name = "refresh_tokens")
@@ -23,5 +24,5 @@ public class RefreshToken {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    private Date expiryDate;
+    private Instant expiryDate;
 }

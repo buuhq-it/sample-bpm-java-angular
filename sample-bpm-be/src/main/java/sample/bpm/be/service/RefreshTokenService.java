@@ -5,45 +5,47 @@ import org.springframework.stereotype.Service;
 import sample.bpm.be.entity.RefreshToken;
 import sample.bpm.be.entity.User;
 import sample.bpm.be.repository.RefreshTokenRepository;
-import sample.bpm.be.repository.UserRepository;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
-    private final long refreshTokenDurationMs;
+    private final long refreshTokenExpiration;
 
-    public RefreshTokenService
-            (RefreshTokenRepository refreshTokenRepository,
-             UserRepository userRepository,
-             @Value("${app.jwt.refresh-expiration}") long refreshTokenDurationMs) {
+    public RefreshTokenService(
+            RefreshTokenRepository refreshTokenRepository,
+            @Value("${app.jwt.refresh-expiration}") long refreshTokenExpiration) {
         this.refreshTokenRepository = refreshTokenRepository;
-        this.userRepository = userRepository;
-        this.refreshTokenDurationMs = refreshTokenDurationMs;
+        this.refreshTokenExpiration = refreshTokenExpiration;
     }
 
+    // ✅ Create & Store a Refresh Token in Database
     public RefreshToken createRefreshToken(User user) {
-        // Delete old token if exists
-        refreshTokenRepository.deleteByUser(user);
-
         RefreshToken refreshToken = RefreshToken.builder()
                 .user(user)
-                .token(UUID.randomUUID().toString())
-                .expiryDate(new Date(System.currentTimeMillis() + refreshTokenDurationMs))
+                .token(UUID.randomUUID().toString())  // ✅ Unique Refresh Token
+                .expiryDate(Instant.now().plusMillis(refreshTokenExpiration))
                 .build();
 
         return refreshTokenRepository.save(refreshToken);
     }
 
+    // ✅ Validate Refresh Token (Check Expiry)
+    public boolean validateRefreshToken(String token) {
+        Optional<RefreshToken> refreshToken = refreshTokenRepository.findByToken(token);
+        return refreshToken.isPresent() && refreshToken.get().getExpiryDate().isAfter(Instant.now());
+    }
+
+    // ✅ Find Refresh Token in DB
     public Optional<RefreshToken> findByToken(String token) {
         return refreshTokenRepository.findByToken(token);
     }
 
-    public void deleteRefreshToken(RefreshToken token) {
-        refreshTokenRepository.delete(token);
+    // ✅ Delete Refresh Token (Logout)
+    public void revokeRefreshToken(String token) {
+        refreshTokenRepository.deleteByToken(token);
     }
 }

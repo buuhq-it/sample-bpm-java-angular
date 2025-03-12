@@ -1,7 +1,5 @@
 package sample.bpm.be.entity;
 
-
-
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,15 +27,4 @@ public class User {
     @CollectionTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id"))
     private Set<Role> roles;
 
-    public Set<Role> getRoles() {
-        return roles;
-    }
-
-    public String getUsername(){
-        return username;
-    }
-
-    public String getPassword(){
-        return password;
-    }
 }
