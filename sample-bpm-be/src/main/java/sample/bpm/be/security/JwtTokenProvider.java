@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Date;
 
 @Component
@@ -23,10 +25,16 @@ public class JwtTokenProvider {
             @Value("${app.jwt.expiration}") long accessTokenExpiration,
             @Value("${app.jwt.refresh-expiration}") long refreshTokenExpiration) {
 
-        this.accessTokenKey = Keys.hmacShaKeyFor(secret.getBytes());
-        this.refreshTokenKey = Keys.hmacShaKeyFor(refreshSecret.getBytes());
+        this.accessTokenKey = generateKey(secret);
+        this.refreshTokenKey = generateKey(refreshSecret);
         this.accessTokenExpiration = accessTokenExpiration;
         this.refreshTokenExpiration = refreshTokenExpiration;
+    }
+
+    // ✅ Securely Generate Secret Keys
+    private SecretKey generateKey(String secret) {
+        byte[] keyBytes = Base64.getEncoder().encode(secret.getBytes(StandardCharsets.UTF_8));
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     // ✅ Generate Access Token
@@ -51,28 +59,22 @@ public class JwtTokenProvider {
 
     // ✅ Extract Username from Access Token
     public String getUsernameFromToken(String token) {
-        try {
-            return Jwts.parser()
-                    .verifyWith(accessTokenKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload()
-                    .getSubject();
-        } catch (JwtException e) {
-            return null; // Invalid token
-        }
+        return Jwts.parser()
+                .verifyWith(accessTokenKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
     }
 
-    // ✅ Validate Access & Refresh Tokens
+    // ✅ Validate Token
     public boolean validateToken(String token, boolean isRefreshToken) {
         try {
             SecretKey key = isRefreshToken ? refreshTokenKey : accessTokenKey;
-
             Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(token);
-
             return true;
         } catch (ExpiredJwtException e) {
             System.out.println("JWT Token has expired");
